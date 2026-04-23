@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V-Security | User Registration</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        #bg-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -2; 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            background-size: cover; background-position: center;
+        }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: transparent;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .portal-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 32px;
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+        }
+        .nav-pills .nav-link {
+            border-radius: 12px;
+            color: #475569;
+            font-weight: 600;
+            padding: 10px 20px;
+        }
+        .nav-pills .nav-link.active {
+            background: #4f46e5;
+            color: white;
+        }
+        #reader {
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+        }
+        .form-control, .form-select {
+            border-radius: 12px;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            background: rgba(255,255,255,0.9);
+        }
+        .btn-submit {
+            background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 14px;
+            font-weight: 700;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .preview-img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+    <div id="bg-canvas"></div>
+    <div class="portal-card">
+        <ul class="nav nav-pills nav-fill mb-4" id="portalTabs">
+            <li class="nav-item">
+                <button class="nav-link active" onclick="switchTab('register')">Registration</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" onclick="switchTab('scan')">Self-Access</button>
+            </li>
+        </ul>
+
+        <!-- Registration View -->
+        <div id="registerView">
+            <div class="text-center mb-4">
+                <h2 class="fw-bold">Request Access Pass</h2>
+                <p class="text-muted">Register your vehicle for QR or RFID access</p>
+            </div>
+
+            <form id="registrationForm">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Full Name</label>
+                        <input type="text" id="userName" class="form-control" placeholder="John Doe" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Plate Number</label>
+                        <input type="text" id="userPlate" class="form-control" placeholder="ABC-1234" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Contact Number</label>
+                        <input type="text" id="userPhone" class="form-control" placeholder="+63...">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Vehicle Type</label>
+                        <select id="userType" class="form-select">
+                            <option value="Cars">Cars</option>
+                            <option value="Motorcycle">Motorcycle</option>
+                            <option value="Private">Private</option>
+                            <option value="Deliveries">Deliveries</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Request Type</label>
+                        <select id="requestType" class="form-select">
+                            <option value="QR Only">Digital QR Pass</option>
+                            <option value="RFID Only">Physical RFID Tag</option>
+                            <option value="Both">Both QR and RFID</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Owner Photo</label>
+                        <input type="file" id="photoFile" class="form-control" accept="image/*" required>
+                        <div id="photoPrev" class="mt-2"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Helmet Photo (Optional)</label>
+                        <input type="file" id="helmetFile" class="form-control" accept="image/*">
+                        <div id="helmetPrev" class="mt-2"></div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">Submit Registration</button>
+            </form>
+
+            <div id="statusMsg" class="mt-3 text-center d-none">
+                <div class="alert alert-success">
+                    <strong>Request Sent!</strong><br>Please wait for admin approval. You can check back later.
+                </div>
+            </div>
+        </div>
+
+        <!-- Scan Access View -->
+        <div id="scanView" class="d-none">
+            <div class="text-center mb-4">
+                <h2 class="fw-bold">Self-Access Terminal</h2>
+                <p class="text-muted">Scan your QR code or tap your RFID tag</p>
+            </div>
+
+            <div id="reader"></div>
+            
+            <div class="mt-4">
+                <label class="form-label small fw-bold">RFID Tag Input (Click here before tapping)</label>
+                <input type="password" id="rfidInput" class="form-control text-center" placeholder="••••••••••••" autocomplete="off">
+                <p class="text-muted small mt-2 text-center">Place your RFID tag on the reader</p>
+            </div>
+
+            <div id="accessStatus" class="mt-3 text-center"></div>
+        </div>
+    </div>
+
+    <script>
+        let ownerBase64 = "";
+        let helmetBase64 = "";
+        let html5QrcodeScanner = null;
+
+        // Apply custom background from main system if it exists
+        window.addEventListener('load', () => {
+            const savedBg = localStorage.getItem('customBg');
+            if(savedBg){ 
+                const bg = document.getElementById('bg-canvas'); 
+                bg.style.backgroundImage = `url(${savedBg})`; 
+                bg.style.backgroundSize = "cover"; 
+            }
+        });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (tab === 'register') {
+                document.getElementById('registerView').classList.remove('d-none');
+                document.getElementById('scanView').classList.add('d-none');
+                stopScanner();
+            } else {
+                document.getElementById('registerView').classList.add('d-none');
+                document.getElementById('scanView').classList.remove('d-none');
+                startScanner();
+                document.getElementById('rfidInput').focus();
+            }
+        }
+
+        function startScanner() {
+            if (html5QrcodeScanner) return;
+            html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear().catch(err => console.error(err));
+                html5QrcodeScanner = null;
+            }
+        }
+
+        function onScanSuccess(decodedText) {
+            processAccess(decodedText);
+        }
+
+        // RFID Input listener
+        document.getElementById('rfidInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                processAccess(this.value);
+                this.value = '';
+            }
+        });
+
+        function processAccess(inputData) {
+            const registry = JSON.parse(localStorage.getItem('qrRegistry')) || [];
+            const vehicles = JSON.parse(localStorage.getItem('vehicleLogs')) || [];
+            let userData = null;
+
+            // Try parsing as QR JSON
+            try {
+                const parsed = JSON.parse(inputData);
+                userData = registry.find(r => r.id === parsed.id);
+            } catch (e) {
+                // Fallback: Check plate or RFID tag match
+                userData = registry.find(r => r.plate === inputData || r.rfidUid === inputData);
+            }
+
+            const statusDiv = document.getElementById('accessStatus');
+
+            if (!userData) {
+                statusDiv.innerHTML = `<div class="alert alert-danger"><strong>Access Denied</strong><br>Pass not found or not registered.</div>`;
+                return;
+            }
+
+            if (userData.status !== 'Approved') {
+                statusDiv.innerHTML = `<div class="alert alert-warning"><strong>Pending Approval</strong><br>Your registration is still awaiting admin review.</div>`;
+                return;
+            }
+
+            const now = new Date();
+            const timeStr = now.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+            
+            // Check if already inside
+            const activeLogIdx = vehicles.findIndex(v => v.plate === userData.plate && v.logOutTime === "---");
+
+            if (activeLogIdx !== -1) {
+                // LOG EXIT
+                vehicles[activeLogIdx].logOutTime = timeStr;
+                statusDiv.innerHTML = `<div class="alert alert-info"><strong>Goodbye, ${userData.name}!</strong><br>Exit logged at ${timeStr}</div>`;
+            } else {
+                // LOG ENTRY
+                const newLog = {
+                    ...userData,
+                    logInTime: timeStr,
+                    logOutTime: "---",
+                    spot: "Self-Assigned",
+                    timestamp: now.getTime()
+                };
+                vehicles.push(newLog);
+                statusDiv.innerHTML = `<div class="alert alert-success"><strong>Welcome, ${userData.name}!</strong><br>Entry logged at ${timeStr}</div>`;
+            }
+
+            localStorage.setItem('vehicleLogs', JSON.stringify(vehicles));
+            
+            // Clear message after 5 seconds
+            setTimeout(() => { statusDiv.innerHTML = ''; }, 5000);
+        }
+
+        // Handle Image Previews and Compression
+        function handleFile(input, targetVar, prevId) {
+            input.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const max = 300;
+                        let w = img.width, h = img.height;
+                        if (w > h) { if (w > max) { h *= max/w; w = max; } }
+                        else { if (h > max) { w *= max/h; h = max; } }
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        const result = canvas.toDataURL('image/jpeg', 0.7);
+                        if (prevId === 'photoPrev') ownerBase64 = result;
+                        else helmetBase64 = result;
+                        document.getElementById(prevId).innerHTML = `<img src="${result}" class="preview-img">`;
+                    };
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        handleFile(document.getElementById('photoFile'), ownerBase64, 'photoPrev');
+        handleFile(document.getElementById('helmetFile'), helmetBase64, 'helmetPrev');
+
+        document.getElementById('registrationForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const data = {
+                id: Date.now(),
+                name: document.getElementById('userName').value,
+                plate: document.getElementById('userPlate').value.toUpperCase(),
+                phone: document.getElementById('userPhone').value,
+                type: document.getElementById('userType').value,
+                passOption: document.getElementById('requestType').value,
+                photo: ownerBase64,
+                helmetPhoto: helmetBase64,
+                status: 'Pending',
+                submittedAt: new Date().toLocaleString()
+            };
+
+            // Save to shared localStorage key
+            let pending = JSON.parse(localStorage.getItem('pendingRegistrations')) || [];
+            pending.push(data);
+            localStorage.setItem('pendingRegistrations', JSON.stringify(pending));
+
+            document.getElementById('registrationForm').classList.add('d-none');
+            document.getElementById('statusMsg').classList.remove('d-none');
+        });
+    </script>
+</body>
+</html>

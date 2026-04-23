@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd \"c:\\\\Tampipi caps\" ; powershell -NoProfile -Command \"& \\{ python -c \\\\\"print\\('term-check'\\)\\\\\" \\}\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

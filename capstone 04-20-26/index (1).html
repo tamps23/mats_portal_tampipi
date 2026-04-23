@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V-Security Pro | Enhanced Vehicle Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <style>
+        :root { 
+            --sidebar-bg: rgba(255, 255, 255, 0.25); 
+            --active-blue: #1a73e8; 
+            --text-dark: #1c1e21; 
+        }
+        
+        #bg-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -2; 
+            background: radial-gradient(circle at top left, #e0eafc, #cfdef3);
+            background-size: cover; background-position: center;
+            transition: filter 0.5s ease, transform 0.5s ease;
+        }
+
+        .bg-blur-active { filter: blur(20px) brightness(0.8); transform: scale(1.05); }
+
+        body { font-family: 'Inter', sans-serif; margin: 0; background: transparent; color: var(--text-dark); overflow-x: hidden; }
+        
+        #auth-container { 
+            height: 100vh; display: flex; align-items: center; justify-content: center; 
+            position: fixed; width: 100%; z-index: 2000; 
+        }
+
+        .liquid-glass-card { 
+            background: rgba(255, 255, 255, 0.35); padding: 2.5rem; border-radius: 30px; 
+            width: 100%; max-width: 450px; backdrop-filter: blur(20px) saturate(180%); 
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: inset 10px 10px 15px rgba(255, 255, 255, 0.4), 15px 15px 35px rgba(0,0,0,0.1);
+            text-align: center; position: relative;
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.5) !important;
+            border: 1px solid rgba(255, 255, 255, 0.7) !important;
+            border-radius: 50px !important; padding: 12px 25px !important; margin-bottom: 15px;
+        }
+
+        .btn-liquid-login {
+            background: #ff0055; color: white; border: none; border-radius: 50px; 
+            padding: 12px 45px; font-weight: 800; box-shadow: 0 8px 20px rgba(255, 0, 85, 0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar { 
+            background: var(--sidebar-bg); width: 280px; height: 94vh; position: fixed; 
+            top: 3vh; left: 20px; border-radius: 24px; backdrop-filter: blur(25px); 
+            border: 1px solid rgba(255, 255, 255, 0.4); z-index: 1000;
+            display: flex; flex-direction: column; transition: all 0.4s ease;
+        }
+        .sidebar.minimized { width: 60px; }
+        .sidebar.minimized .brand, .sidebar.minimized .nav-link span:not(.material-icons-round) { display: none; }
+        .sidebar.minimized .nav-link { justify-content: center; padding: 14px; }
+
+        .main-content { margin-left: 320px; padding: 40px; min-height: 100vh; transition: all 0.4s ease; }
+        .main-content.maximized { margin-left: 80px; padding: 20px; }
+
+        .nav-link { 
+            color: #444; padding: 14px 20px; margin: 8px 15px; border-radius: 16px;
+            display: flex; align-items: center; gap: 15px; cursor: pointer; text-decoration: none !important; 
+            font-weight: 600; transition: 0.3s;
+        }
+        .nav-link.active { background: rgba(255, 255, 255, 0.7); color: var(--active-blue); }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.5s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 24px; background: rgba(255, 255, 255, 0.3); backdrop-filter: blur(15px); }
+
+        .dashboard-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.4) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 24px;
+            backdrop-filter: blur(15px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        .dashboard-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
+
+        .metric-icon {
+            font-size: 2rem;
+            opacity: 0.7;
+            margin-bottom: 10px;
+        }
+
+        .chart-container {
+            background: rgba(255,255,255,0.5);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .chart-container:hover { transform: scale(1.02); }
+
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 24px;
+            margin-bottom: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .dashboard-header h1 {
+            font-weight: 800;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+        .dashboard-header p {
+            opacity: 0.9;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .dashboard-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .maximize-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        .maximize-btn:hover { background: rgba(255,255,255,0.4); transform: scale(1.1); }
+
+        .registry-badge {
+            background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: 20px; padding: 15px; cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; gap: 15px; position: relative;
+        }
+        .registry-badge:hover { background: white; transform: scale(1.02); }
+        .registry-thumb { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid white; }
+
+        .modal-photo {
+            width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+            border: 4px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.1); margin-bottom: 15px;
+        }
+
+        #scan-popup {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+            z-index: 3000; padding: 2rem 4rem; background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(25px); border-radius: 30px; opacity: 0; visibility: hidden;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center;
+        }
+        #scan-popup.show { opacity: 1; visibility: visible; transform: translate(-50%, -50%) scale(1); }
+
+        /* Parking Map Styles */
+        .spot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin-top: 20px; }
+        .spot-btn {
+            padding: 10px; border-radius: 12px; border: 2px solid #ddd;
+            text-align: center; font-weight: 800; font-size: 0.8rem;
+            background: rgba(255, 255, 255, 0.5); color: #444; transition: 0.3s;
+        }
+        .spot-btn.occupied { background: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+        .spot-btn.available { background: #dcfce7; border-color: #22c55e; color: #15803d; }
+
+        @media (max-width: 768px) {
+            .main-content { margin-left: 0; padding: 20px; padding-top: 80px; }
+            .main-content.maximized { margin-left: 0; }
+            .sidebar { width: 0; left: -260px; }
+            .sidebar.minimized { width: 0; left: -260px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="qrDetailsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.3); backdrop-filter:blur(15px); z-index:4000; align-items:center; justify-content:center;">
+    <div class="liquid-glass-card" style="max-width: 500px;">
+        <div class="row mb-3">
+            <div class="col-6 text-center">
+                <img id="modalPhoto" src="" class="modal-photo" alt="Profile">
+                <p class="small text-muted">Owner Photo</p>
+            </div>
+            <div class="col-6 text-center">
+                <img id="modalHelmetPhoto" src="" class="modal-photo" alt="Helmet">
+                <p class="small text-muted">Helmet Photo</p>
+            </div>
+        </div>
+        <h3 id="modalName" class="fw-bold mb-1"></h3>
+        <span id="modalType" class="badge bg-primary mb-3 rounded-pill px-3"></span>
+        <div class="row mb-3">
+            <div class="col-6">
+                <div id="modalQrDisplay" class="d-flex justify-content-center bg-white p-2 rounded-3 shadow-sm"></div>
+                <p class="small text-muted text-center">Vehicle QR</p>
+            </div>
+            <div class="col-6">
+                <div id="modalHelmetQrDisplay" class="d-flex justify-content-center bg-white p-2 rounded-3 shadow-sm"></div>
+                <p class="small text-muted text-center">Helmet QR</p>
+            </div>
+        </div>
+        <div class="text-start small bg-white bg-opacity-50 p-3 rounded-4 mb-3">
+            <p class="mb-1 text-muted">PLATE NUMBER</p>
+            <p class="fw-bold mb-2" id="modalPlate"></p>
+            <p class="mb-1 text-muted">CONTACT INFO</p>
+            <p class="fw-bold mb-2" id="modalPhone"></p>
+            <p class="mb-1 text-muted">HELMET INFO</p>
+            <p class="fw-bold mb-0" id="modalHelmet"></p>
+        </div>
+        <div class="d-grid gap-2">
+            <button class="btn btn-dark rounded-pill" onclick="closeModal()">Close Details</button>
+            <button class="btn btn-outline-danger btn-sm border-0" id="deleteRegistryBtn">Revoke Access</button>
+        </div>
+    </div>
+</div>
+
+<div id="spotModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.3); backdrop-filter:blur(10px); z-index:5000; align-items:center; justify-content:center;">
+<div id="spotModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.3); backdrop-filter:blur(10px); z-index:5000; align-items:center; justify-content:center;" data-mode="">
+    <div class="liquid-glass-card" style="max-width: 420px;">
+        <h4 class="fw-bold mb-1">Assign Parking Spot</h4>
+        <p class="small text-muted mb-3" id="spotModalVehicle"></p>
+        <div id="spotGrid" class="spot-grid mb-3" style="max-height: 200px; overflow-y: auto;"></div>
+        <div class="mb-3">
+            <label class="form-label small fw-bold">Or Enter Custom Spot</label>
+            <input type="text" id="customSpotInput" class="form-control glass-input" placeholder="e.g. VIP-1">
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-secondary rounded-pill flex-fill" onclick="cancelSpotAssignment()">Cancel</button>
+            <button class="btn btn-primary rounded-pill flex-fill fw-bold" onclick="confirmSpotAssignment()">Confirm Entry</button>
+            <button class="btn btn-primary rounded-pill flex-fill fw-bold" onclick="confirmSpotAssignment()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<div id="scan-popup">
+    <span class="material-icons-round popup-icon" style="font-size: 60px;"></span>
+    <h1 id="popup-text" class="fw-bold" style="color: #1a73e8;"></h1>
+    <p id="popup-subtext" class="text-dark opacity-75"></p>
+</div>
+
+<div id="bg-canvas"></div>
+
+<div id="auth-container">
+    <div id="login-form" class="liquid-glass-card">
+        <h2 class="fw-bold mb-4">Sign in</h2>
+        <input type="email" id="logEmail" class="form-control glass-input" placeholder="Email">
+        <input type="password" id="logPass" class="form-control glass-input" placeholder="Password">
+        <button class="btn btn-liquid-login mt-3" onclick="handleLogin()">LOGIN</button>
+        <p class="mt-4 small text-muted">No account? <a href="#" onclick="toggleAuth(false)" class="fw-bold text-primary">Sign up</a></p>
+    </div>
+    <div id="signup-form" class="liquid-glass-card" style="display:none">
+        <h2 class="fw-bold mb-4">Register</h2>
+        <input type="text" id="regName" class="form-control glass-input" placeholder="Full Name">
+        <input type="email" id="regEmail" class="form-control glass-input" placeholder="Email">
+        <input type="password" id="regPass" class="form-control glass-input" placeholder="Password">
+        <button class="btn btn-liquid-login mt-2" onclick="handleSignup()" style="background: #34a853;">CREATE</button>
+        <p class="mt-3 small"><a href="#" onclick="toggleAuth(true)" class="text-muted">Back to Login</a></p>
+    </div>
+</div>
+
+<div id="app-interface" style="display: none;">
+    <nav class="sidebar">
+        <div class="brand" style="padding: 25px 20px; font-weight: 800; font-size: 1.2rem;">V-Security Pro</div>
+        <div class="nav-link active" onclick="showSection('dashboard')"><span class="material-icons-round">dashboard</span> Dashboard</div>
+        <div class="nav-link" onclick="showSection('qr-scanner-view')"><span class="material-icons-round">qr_code_scanner</span> QR Management</div>
+        <div class="nav-link" onclick="showSection('parking-settings')"><span class="material-icons-round">settings</span> Settings</div>
+        <div class="nav-link" onclick="showSection('parking-map-view')"><span class="material-icons-round">layers</span> Parking Map</div>
+        <div class="nav-link" onclick="showSection('registry-view')"><span class="material-icons-round">badge</span> Pass Registry</div>
+        <div class="nav-link" onclick="showSection('vehicle-logs')"><span class="material-icons-round">directions_car</span> Vehicle Logs</div>
+        <div class="nav-link" onclick="showSection('reports-view')"><span class="material-icons-round">assessment</span> Reports</div>
+        <div class="nav-link logout-link mt-auto mb-4" onclick="handleLogout()"><span class="material-icons-round">logout</span> Log Out</div>
+    </nav>
+
+    <main class="main-content">
+        <div id="dashboard" class="view-section active">
+            <div class="dashboard-header">
+                <h1 class="fw-bold mb-2">Security Dashboard</h1>
+                <p class="mb-0 opacity-75">Real-time parking and security monitoring</p>
+                <button class="maximize-btn" onclick="toggleMaximize()" id="maximizeBtn">
+                    <span class="material-icons-round">fullscreen</span>
+                </button>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-lg-3 col-xl-2">
+                    <div class="dashboard-card p-3 text-center">
+                        <div class="material-icons-round metric-icon text-primary">analytics</div>
+                        <p class="text-dark mb-1 small fw-bold">Total Logs</p>
+                        <h3 id="dashTotal" class="text-primary fw-bold">0</h3>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3 col-xl-2">
+                    <div class="dashboard-card p-3 text-center">
+                        <div class="material-icons-round metric-icon text-success">directions_car</div>
+                        <p class="text-dark mb-1 small fw-bold">Cars</p>
+                        <h3 id="dashCars" class="text-success fw-bold">0</h3>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3 col-xl-2">
+                    <div class="dashboard-card p-3 text-center">
+                        <div class="material-icons-round metric-icon text-warning">motorcycle</div>
+                        <p class="text-dark mb-1 small fw-bold">Motorcycle</p>
+                        <h3 id="dashMotorcycle" class="text-warning fw-bold">0</h3>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3 col-xl-2">
+                    <div class="dashboard-card p-3 text-center">
+                        <div class="material-icons-round metric-icon text-info">person</div>
+                        <p class="text-dark mb-1 small fw-bold">Private</p>
+                        <h3 id="dashPrivate" class="text-info fw-bold">0</h3>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3 col-xl-2">
+                    <div class="dashboard-card p-3 text-center">
+                        <div class="material-icons-round metric-icon text-secondary">local_shipping</div>
+                        <p class="text-dark mb-1 small fw-bold">Deliveries</p>
+                        <h3 id="dashDeliveries" class="text-secondary fw-bold">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-4">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h4 class="mb-3 text-center fw-bold text-dark">Traffic Overview</h4>
+                        <canvas id="trafficChart" style="max-height: 350px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-4 mt-4">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h5 class="mb-3 text-center fw-bold text-dark">Entry Types Distribution</h5>
+                        <canvas id="typeChart" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h5 class="mb-3 text-center fw-bold text-dark">Parking Capacity Status</h5>
+                        <canvas id="parkingStatusChart" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="row g-4 mt-4">
+                <div class="col-12">
+                    <div class="chart-container">
+                        <h5 class="mb-3 text-center fw-bold text-dark">Helmet Storage Status</h5>
+                        <canvas id="helmetStatusChart" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="qr-scanner-view" class="view-section">
+            <h2 class="fw-bold mb-4">QR Access Control</h2>
+            <div class="row g-4">
+                <div class="col-lg-5">
+                    <div class="card p-4">
+                        <h5 class="mb-3">Generate Digital Pass</h5>
+                        <div class="mb-3 text-center">
+                            <label class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                                <span class="material-icons-round align-middle">add_a_photo</span> Add Owner Photo
+                                <input type="file" id="ownerPhotoInput" hidden accept="image/*">
+                            </label>
+                            <div id="photoPreview" class="mt-2 small text-muted">No photo selected</div>
+                        </div>
+                        <div class="mb-3 text-center">
+                            <label class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                                <span class="material-icons-round align-middle">add_a_photo</span> Add Helmet Photo
+                                <input type="file" id="helmetPhotoInput" hidden accept="image/*">
+                            </label>
+                            <div id="helmetPhotoPreview" class="mt-2 small text-muted">No helmet photo selected</div>
+                        </div>
+                        <input type="text" id="qrName" class="form-control mb-2" placeholder="Owner Name">
+                        <input type="text" id="qrPlate" class="form-control mb-2" placeholder="Plate Number">
+                        <input type="text" id="qrPhone" class="form-control mb-2" placeholder="Contact #">
+                        <input type="text" id="qrMessenger" class="form-control mb-2" placeholder="Facebook (Optional)">
+                        <input type="text" id="qrHelmet" class="form-control mb-2" placeholder="Helmet Info (Optional)">
+                        <select id="qrType" class="form-select mb-3">
+                            <option value="Cars">Cars</option>
+                            <option value="Motorcycle">Motorcycle</option>
+                            <option value="Private">Private</option>
+                            <option value="Deliveries">Deliveries</option>
+                        </select>
+                        <button class="btn btn-primary w-100 fw-bold" onclick="generateCertifiedQR()">GENERATE & SAVE</button>
+                        <div id="qrOutputContainer" class="mt-4 text-center p-3 border rounded d-none bg-white">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h6>Vehicle Pass</h6>
+                                    <div id="qrcode-display" class="d-flex justify-content-center mb-3"></div>
+                                </div>
+                                <div class="col-6">
+                                    <h6>Helmet Pass</h6>
+                                    <div id="helmet-qrcode-display" class="d-flex justify-content-center mb-3"></div>
+                                </div>
+                            </div>
+                            <p id="qrLabel" class="small fw-bold mb-2"></p>
+                            <button class="btn btn-sm btn-success w-100" onclick="printPass()">Print Pass</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <div class="card p-4">
+                        <h5 class="mb-3">Scan Entry/Exit</h5>
+                        <div id="reader"></div>
+                        <div id="scanStatus" class="mt-3 alert alert-info text-center py-2">Ready...</div>
+
+                        <div class="mt-4 p-3 border rounded bg-light bg-opacity-50">
+                            <h6 class="fw-bold mb-2">Unlimited Manual Entry</h6>
+                            <textarea id="manualQrInput" class="form-control mb-2" rows="2" placeholder="Paste QR JSONs or Plate numbers (one per line)"></textarea>
+                            <div class="d-flex gap-2">
+                                <input type="text" id="manualBatchSpot" class="form-control form-control-sm" placeholder="Spot for batch (optional)">
+                                <button class="btn btn-sm btn-outline-primary" onclick="processManualBatch()">Process All</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="parking-map-view" class="view-section">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold">Live Parking Map</h2>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-success rounded-pill px-3">Available</span>
+                    <span class="badge bg-danger rounded-pill px-3">Occupied</span>
+                </div>
+            </div>
+            <div class="card p-4">
+                <label class="form-label fw-bold small">Category</label>
+                <select class="form-select w-auto mb-3" id="mapTypeFilter" onchange="renderParkingMap()"></select>
+                <div id="parkingMapGrid" class="spot-grid"></div>
+            </div>
+        </div>
+
+        <div id="registry-view" class="view-section">
+            <h2 class="fw-bold mb-4">Issued Pass Registry</h2>
+            <div class="card p-4">
+                <div id="qrRegistryList" class="row g-3"></div>
+            </div>
+        </div>
+
+        <div id="parking-settings" class="view-section">
+            <h2 class="fw-bold mb-4">Settings</h2>
+            <div class="mb-4">
+                <button class="btn btn-outline-primary" onclick="toggleCapacityControls()" id="toggleCapacityBtn">Show capacity settings</button>
+            </div>
+            <div id="capacityControls" class="row g-4" style="display:none;">
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h5 class="mb-3">Vehicle Capacity Limits</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Cars Parking Limit</label>
+                            <div class="input-group">
+                                <input type="number" id="carsCapacity" class="form-control" min="1" placeholder="Max spots">
+                                <button class="btn btn-primary" onclick="updateCapacity('Cars')">Set</button>
+                            </div>
+                            <div id="carsCapacityDisplay" class="mt-2 small text-muted"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card p-4">
+                        <h5 class="mb-3">Helmet Capacity Limits</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Cars Helmet Limit</label>
+                            <div class="input-group">
+                                <input type="number" id="carsHelmetCapacity" class="form-control" min="1" placeholder="Max helmets">
+                                <button class="btn btn-primary" onclick="updateHelmetCapacity('Cars')">Set</button>
+                            </div>
+                            <div id="carsHelmetCapacityDisplay" class="mt-2 small text-muted"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Motorcycle Helmet Limit</label>
+                            <div class="input-group">
+                                <input type="number" id="motorcycleHelmetCapacity" class="form-control" min="1" placeholder="Max helmets">
+                                <button class="btn btn-warning" onclick="updateHelmetCapacity('Motorcycle')">Set</button>
+                            </div>
+                            <div id="motorcycleHelmetCapacityDisplay" class="mt-2 small text-muted"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Private Helmet Limit</label>
+                            <div class="input-group">
+                                <input type="number" id="privateHelmetCapacity" class="form-control" min="1" placeholder="Max helmets">
+                                <button class="btn btn-info" onclick="updateHelmetCapacity('Private')">Set</button>
+                            </div>
+                            <div id="privateHelmetCapacityDisplay" class="mt-2 small text-muted"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Deliveries Helmet Limit</label>
+                            <div class="input-group">
+                                <input type="number" id="deliveriesHelmetCapacity" class="form-control" min="1" placeholder="Max helmets">
+                                <button class="btn btn-success" onclick="updateHelmetCapacity('Deliveries')">Set</button>
+                            </div>
+                            <div id="deliveriesHelmetCapacityDisplay" class="mt-2 small text-muted"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <div class="card p-4">
+                    <h5 class="mb-3">Appearance Settings</h5>
+                    <label class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                        <span class="material-icons-round align-middle">wallpaper</span> Change Background
+                        <input type="file" id="bgInput" hidden accept="image/*" onchange="changeBackground(event)">
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="vehicle-logs" class="view-section">
+            <h2 class="fw-bold mb-4">Vehicle Logs</h2>
+            <div class="card p-4">
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Owner Info</th>
+                                <th>Plate</th>
+                                <th>Type</th>
+                                <th>Parking Spot</th>
+                                <th>Notes</th>
+                                <th>Entry Time</th>
+                                <th>Exit Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="reports-view" class="view-section">
+            <h2 class="fw-bold mb-4">Reports</h2>
+            <div class="card p-4">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="reportPeriod" class="form-label">Report Period</label>
+                        <select class="form-select" id="reportPeriod">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="reportDate" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="reportDate" value="">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-primary" onclick="generateReport()">Generate Report</button>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-secondary" onclick="printReport()">Print Report</button>
+                    </div>
+                </div>
+                <div id="reportContent"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    let vehicles = JSON.parse(localStorage.getItem('vehicleLogs')) || [];
+    let helmetLogs = JSON.parse(localStorage.getItem('helmetLogs')) || [];
+    let qrRegistry = JSON.parse(localStorage.getItem('qrRegistry')) || [];
+    let totalEntries = parseInt(localStorage.getItem('totalCounter')) || 0;
+    let trafficChart, typeChart, parkingStatusChart, helmetStatusChart;
+    let html5QrcodeScanner = null;
+    let ownerPhotoBase64 = "";
+    let helmetPhotoBase64 = "";
+
+    let parkingConfig = JSON.parse(localStorage.getItem('parkingConfig')) || { Cars: { capacity: 20 }, Motorcycle: { capacity: 30 }, Private: { capacity: 15 }, "Deliveries": { capacity: 10 } };
+    // Ensure all institutional types exist in current config
+    const TYPES = ['Cars', 'Motorcycle', 'Private', 'Deliveries'];
+    Object.keys(parkingConfig).forEach(k => { if(!TYPES.includes(k)) delete parkingConfig[k]; }); // Clean up old types
+    TYPES.forEach(k => { if(!parkingConfig[k]) parkingConfig[k] = { capacity: 10 }; }); // Add new types if missing
+    let helmetConfig = JSON.parse(localStorage.getItem('helmetConfig')) || { Cars: { capacity: 5 }, Motorcycle: { capacity: 30 }, Private: { capacity: 5 }, "Deliveries": { capacity: 5 } };
+
+    function saveParkingConfig() {
+        localStorage.setItem('parkingConfig', JSON.stringify(parkingConfig));
+    }
+
+    function saveHelmetConfig() {
+        localStorage.setItem('helmetConfig', JSON.stringify(helmetConfig));
+    }
+
+    function getActiveCount(type) {
+        return vehicles.filter(v => v.type === type && v.logOutTime === "---").length;
+    }
+
+    function getHelmetActiveCount(type) {
+        return helmetLogs.filter(h => h.type === type && h.logOutTime === "---").length;
+    }
+
+    function getAssignedSpot(type) {
+        const usedSpots = vehicles
+            .filter(v => v.type === type && v.logOutTime === "---" && v.spot)
+            .map(v => v.spot);
+        const prefix = type.charAt(0).toUpperCase();
+        for (let i = 1; i <= parkingConfig[type].capacity; i++) {
+            const spot = `${prefix}-${i}`;
+            if (!usedSpots.includes(spot)) return spot;
+        }
+        return `${prefix}-${usedSpots.length + 1}`;
+    }
+
+    function getAllSpots(type) {
+        const cap = parkingConfig[type]?.capacity || 10;
+        const prefix = type.charAt(0).toUpperCase();
+        return Array.from({length: cap}, (_, i) => `${prefix}-${i+1}`);
+        // Note: Overflow spots are handled dynamically in getAutoSpot if capacity is exceeded.
+    }
+
+    function renderParkingMap() {
+        const type = document.getElementById('mapTypeFilter').value;
+        const grid = document.getElementById('parkingMapGrid');
+        if (!type || !grid) return;
+
+        const allSpots = getAllSpots(type);
+        const occupied = new Set(vehicles
+            .filter(v => v.type === type && v.logOutTime === "---" && v.spot)
+            .map(v => v.spot));
+            
+        grid.innerHTML = '';
+        allSpots.forEach(spot => {
+            const div = document.createElement('div');
+            const isOccupied = occupied.has(spot);
+            div.className = 'spot-btn ' + (isOccupied ? 'occupied' : 'available');
+            div.style.cursor = 'default';
+            div.style.height = '60px';
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.justifyContent = 'center';
+            div.innerText = spot;
+            grid.appendChild(div);
+        });
+    }
+
+    function updateCapacity(type) {
+        const capacityInput = document.getElementById(type.toLowerCase() + 'Capacity');
+        const newCapacity = parseInt(capacityInput.value, 10);
+        if (!newCapacity || newCapacity < 1) {
+            alert('Please enter a valid positive number for ' + type + ' capacity.');
+            return;
+        }
+        parkingConfig[type].capacity = newCapacity;
+        saveParkingConfig();
+        alert(type + ' parking limit set to ' + newCapacity);
+        updateParkingStatus();
+        updateUI();
+    }
+
+    function updateHelmetCapacity(type) {
+        const capacityInput = document.getElementById(type.replace(/\s+/g, '').toLowerCase() + 'HelmetCapacity');
+        const newCapacity = parseInt(capacityInput.value, 10);
+        if (!newCapacity || newCapacity < 1) {
+            alert('Please enter a valid positive number for ' + type + ' helmet capacity.');
+            return;
+        }
+        helmetConfig[type].capacity = newCapacity;
+        saveHelmetConfig();
+        alert(type + ' helmet limit set to ' + newCapacity);
+        updateParkingStatus();
+        updateUI();
+    }
+
+    function updateParkingStatus() {
+        ['Cars', 'Motorcycle', 'Private', 'Deliveries'].forEach(type => {
+            const idBase = type.replace(/\s+/g, '').toLowerCase();
+            const input = document.getElementById(idBase + 'Capacity');
+            if (input && !input.value) {
+                input.value = parkingConfig[type].capacity;
+            }
+            const display = document.getElementById(idBase + 'CapacityDisplay');
+            if (display) {
+                display.innerText = `${getActiveCount(type)} of ${parkingConfig[type].capacity} currently in use`;
+            }
+            const helmetInput = document.getElementById(idBase + 'HelmetCapacity');
+            if (helmetInput && !helmetInput.value) {
+                helmetInput.value = helmetConfig[type].capacity;
+            }
+            const helmetDisplay = document.getElementById(idBase + 'HelmetCapacityDisplay');
+            if (helmetDisplay) {
+                helmetDisplay.innerText = `${getHelmetActiveCount(type)} of ${helmetConfig[type].capacity} currently in use`;
+            }
+        });
+        updateMonitorCharts();
+    }
+
+    function toggleCapacityControls() {
+        const controls = document.getElementById('capacityControls');
+        const button = document.getElementById('toggleCapacityBtn');
+        if (!controls || !button) return;
+        const isHidden = controls.style.display === 'none' || controls.style.display === '';
+        controls.style.display = isHidden ? 'flex' : 'none';
+        button.innerText = isHidden ? 'Hide capacity settings' : 'Show capacity settings';
+    }
+
+    // --- REFRESH PERSISTENCE LOGIC ---
+    window.onload = () => {
+        // Load and Apply Custom Background
+        const savedBg = localStorage.getItem('customBg');
+        if (savedBg) {
+            const bg = document.getElementById('bg-canvas');
+            bg.style.backgroundImage = `url(${savedBg})`;
+            bg.style.backgroundSize = "cover";
+        }
+
+        // Check Session Persistence
+            const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+        if (isLoggedIn) {
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('app-interface').style.display = 'block';
+            
+            const types = ['Cars', 'Motorcycle', 'Private', 'Deliveries'];
+            const types = ['Cars', 'Motorcycle', 'Private', 'Deliveries'];
+            const mapFilter = document.getElementById('mapTypeFilter');
+            if(mapFilter) mapFilter.innerHTML = types.map(t => `<option value="${t}">${t}</option>`).join('');
+            
+            buildCapacityForms(); // Initialize capacity forms
+            initCharts(); updateUI(); updateParkingStatus();
+            // Auto-maximize dashboard for better visibility
+            setTimeout(() => {
+                const mainContent = document.querySelector('.main-content');
+                const sidebar = document.querySelector('.sidebar');
+                const btn = document.getElementById('maximizeBtn');
+                const icon = btn.querySelector('.material-icons-round');
+                mainContent.classList.add('maximized');
+                sidebar.classList.add('minimized');
+                icon.textContent = 'fullscreen_exit';
+            }, 100);
+        } else {
+            document.getElementById('auth-container').style.display = 'flex';
+            document.getElementById('app-interface').style.display = 'none';
+        }
+    };
+
+    // --- NEW: REFINED BACKGROUND CHANGER ---
+    function changeBackground(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            const bgCanvas = document.getElementById('bg-canvas');
+            const imageData = reader.result;
+            
+            // 1. Apply immediately to UI
+            bgCanvas.style.backgroundImage = `url(${imageData})`;
+            bgCanvas.style.backgroundSize = "cover";
+            
+            // 2. Attempt to save to LocalStorage
+            try {
+                localStorage.setItem('customBg', imageData);
+            } catch (e) {
+                console.warn("Image too large for LocalStorage. It will reset on refresh.");
+                alert("This image is quite large! It's applied now, but might not stay after you refresh the page.");
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // --- PHOTO LOGIC (Owner Pass) ---
+    document.getElementById('ownerPhotoInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = () => {
+            ownerPhotoBase64 = reader.result;
+            document.getElementById('photoPreview').innerHTML = `<img src="${reader.result}" style="width:50px; height:50px; border-radius:50%; object-fit:cover;"> Photo Ready`;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // --- HELMET PHOTO LOGIC ---
+    document.getElementById('helmetPhotoInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = () => {
+            helmetPhotoBase64 = reader.result;
+            document.getElementById('helmetPhotoPreview').innerHTML = `<img src="${reader.result}" style="width:50px; height:50px; border-radius:50%; object-fit:cover;"> Helmet Photo Ready`;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // --- AUTH ---
+    function handleLogin() {
+        const email = document.getElementById('logEmail').value.trim();
+        const pass = document.getElementById('logPass').value.trim();
+        const stored = JSON.parse(localStorage.getItem('adminUser'));
+        if (!stored) {
+            alert('No admin account found. Please register first.');
+            toggleAuth(false);
+            return;
+        }
+        if (!email || !pass) {
+            alert('Please enter both email and password.');
+            return;
+        }
+        if (email === stored.email && pass === stored.pass) {
+            localStorage.setItem('isLoggedIn', 'true');
+            document.getElementById('auth-container').style.display = 'none';
+            document.getElementById('app-interface').style.display = 'block';
+            
+            const types = ['Cars', 'Motorcycle', 'Private', 'Deliveries Service'];
+            const types = ['Cars', 'Motorcycle', 'Private', 'Deliveries'];
+            const mapFilter = document.getElementById('mapTypeFilter');
+            if(mapFilter) mapFilter.innerHTML = types.map(t => `<option value="${t}">${t}</option>`).join('');
+            
+            initCharts();
+            updateUI();
+            updateParkingStatus();
+        } else {
+            alert('Invalid Credentials');
+        }
+    }
+
+    function toggleAuth(showLogin) {
+        document.getElementById('login-form').style.display = showLogin ? 'block' : 'none';
+        document.getElementById('signup-form').style.display = showLogin ? 'none' : 'block';
+    }
+
+    function handleSignup() {
+        const name = document.getElementById('regName').value.trim();
+        const email = document.getElementById('regEmail').value.trim();
+        const pass = document.getElementById('regPass').value.trim();
+        if (!name || !email || !pass) {
+            alert('Please fill in all registration fields.');
+            return;
+        }
+        const user = { name, email, pass };
+        localStorage.setItem('adminUser', JSON.stringify(user));
+        localStorage.setItem('isLoggedIn', 'true');
+        document.getElementById('auth-container').style.display = 'none'; 
+        document.getElementById('app-interface').style.display = 'block';
+        
+
+        const types = ['Cars', 'Motorcycle', 'Private', 'Deliveries'];
+        const mapFilter = document.getElementById('mapTypeFilter');
+        if(mapFilter) mapFilter.innerHTML = types.map(t => `<option value="${t}">${t}</option>`).join('');
+        
+        initCharts();
+        updateUI();
+        updateParkingStatus();
+        alert('Registration complete. You are now logged in.');
+    }
+    
+    function handleLogout() {
+        localStorage.removeItem('isLoggedIn');
+        location.reload(); 
+    }
+
+    // --- NAVIGATION ---
+    function showSection(id) {
+        document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.nav-link').forEach(l => {
+            l.classList.remove('active');
+            if(l.getAttribute('onclick')?.includes(id)) l.classList.add('active');
+        });
+        document.getElementById(id).classList.add('active');
+        if (id === 'qr-scanner-view') {
+            initScanner();
+        } else if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear().catch(() => {});
+            html5QrcodeScanner = null;
+        
+        // Manage scanner lifecycle
+        if (id === 'qr-scanner-view') { startScanner(); } 
+        else if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) { // 2 means scanning
+            stopScanner();
+            // html5QrcodeScanner.clear().catch(() => {}); // clear is part of stop
+            document.getElementById('reader').innerHTML = '';
+        }
+        if(id === 'parking-map-view') renderParkingMap();
+    }
+
+    function toggleMaximize() {
+        const mainContent = document.querySelector('.main-content');
+        const sidebar = document.querySelector('.sidebar');
+        const btn = document.getElementById('maximizeBtn');
+        const icon = btn.querySelector('.material-icons-round');
+        
+        const isMaximized = mainContent.classList.contains('maximized');
+        
+        if (isMaximized) {
+            mainContent.classList.remove('maximized');
+            sidebar.classList.remove('minimized');
+            icon.textContent = 'fullscreen';
+        } else {
+            mainContent.classList.add('maximized');
+            sidebar.classList.add('minimized');
+            icon.textContent = 'fullscreen_exit';
+        }
+    }
+
+    // --- QR LOGIC ---
+    function generateCertifiedQR() {
+        const data = {
+            name: document.getElementById('qrName').value,
+            plate: document.getElementById('qrPlate').value,
+            phone: document.getElementById('qrPhone').value,
+            messenger: document.getElementById('qrMessenger').value,
+            helmet: document.getElementById('qrHelmet').value,
+            type: document.getElementById('qrType').value,
+            photo: ownerPhotoBase64,
+            helmetPhoto: helmetPhotoBase64,
+            id: Date.now()
+        };
+        if (!data.name || !data.plate) return alert("Name and Plate are required");
+
+        qrRegistry.push(data);
+        localStorage.setItem('qrRegistry', JSON.stringify(qrRegistry));
+        
+        // Generate vehicle QR (always required)
+        document.getElementById("qrcode-display").innerHTML = "";
+        new QRCode(document.getElementById("qrcode-display"), { text: JSON.stringify({id: data.id, plate: data.plate, name: data.name, type: data.type}), width: 140, height: 140 });
+        
+        // Generate helmet QR only if helmet photo and name are provided
+        const helmetQrContainer = document.getElementById("helmet-qrcode-display");
+        if (helmetPhotoBase64 && data.name) {
+            helmetQrContainer.innerHTML = "";
+            new QRCode(helmetQrContainer, { text: JSON.stringify({id: data.id, helmet: data.helmet, type: 'helmet'}), width: 140, height: 140 });
+        } else {
+            helmetQrContainer.innerHTML = '<div class="text-center text-muted small">Helmet QR not generated<br>(Upload helmet photo and fill name)</div>';
+        }
+        
+        document.getElementById('qrLabel').innerText = data.name;
+        document.getElementById('qrOutputContainer').classList.remove('d-none');
+        
+        // Reset form
+        ownerPhotoBase64 = "";
+        ownerPhotoBase64 = ""; // Clear photo data
+        helmetPhotoBase64 = "";
+        document.getElementById('photoPreview').innerText = "No photo selected";
+        document.getElementById('helmetPhotoPreview').innerText = "No helmet photo selected";
+        document.getElementById('qrName').value = "";
+        document.getElementById('qrPlate').value = "";
+        document.getElementById('qrPhone').value = "";
+        document.getElementById('qrMessenger').value = "";
+        document.getElementById('qrHelmet').value = "";
+        updateUI();
+    }
+
+    function viewQrDetails(id) {
+        const item = qrRegistry.find(q => q.id === id);
+        if(!item) return;
+        document.getElementById('modalName').innerText = item.name;
+        document.getElementById('modalType').innerText = item.type;
+        document.getElementById('modalPlate').innerText = item.plate;
+        document.getElementById('modalPhone').innerText = item.phone || "N/A";
+        document.getElementById('modalHelmet').innerText = item.helmet || "N/A";
+        document.getElementById('modalPhoto').src = item.photo || "https://via.placeholder.com/150?text=No+Photo";
+        document.getElementById('modalHelmetPhoto').src = item.helmetPhoto || "https://via.placeholder.com/150?text=No+Helmet+Photo";
+        
+        // Generate vehicle QR (always exists)
+        const qrTarget = document.getElementById('modalQrDisplay');
+        qrTarget.innerHTML = "";
+        new QRCode(qrTarget, { text: JSON.stringify({id: item.id, plate: item.plate, name: item.name, type: item.type}), width: 100, height: 100 });
+        
+        // Generate helmet QR only if helmet photo and name exist
+        const helmetQrTarget = document.getElementById('modalHelmetQrDisplay');
+        helmetQrTarget.innerHTML = "";
+        if (item.helmetPhoto && item.name) {
+            new QRCode(helmetQrTarget, { text: JSON.stringify({id: item.id, helmet: item.helmet, type: 'helmet'}), width: 100, height: 100 });
+        } else {
+            helmetQrTarget.innerHTML = '<div class="text-center text-muted small p-2">No helmet QR<br>generated</div>';
+        }
+        
+        document.getElementById('deleteRegistryBtn').onclick = () => deleteFromRegistry(id);
+        document.getElementById('qrDetailsModal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('qrDetailsModal').style.display = 'none'; }
+
+    function deleteFromRegistry(id) {
+        if(confirm("Permanently delete this pass?")) {
+            qrRegistry = qrRegistry.filter(q => q.id !== id);
+            localStorage.setItem('qrRegistry', JSON.stringify(qrRegistry));
+            closeModal(); updateUI();
+        }
+    }
+
+    // --- SCANNER ---
+    let lastScannedCode = "";
+    let lastScannedTime = 0;
+
+    function initScanner() {
+        if (html5QrcodeScanner) return;
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+        html5QrcodeScanner.render(onScanSuccess);
+        if (!html5QrcodeScanner) {
+            html5QrcodeScanner = new Html5Qrcode("reader");
+        }
+    }
+
+    let pendingEntry = null;
+    let selectedSpotLabel = null;
+    function startScanner(){
+        initScanner(); // Ensure scanner object is initialized
+        if (html5QrcodeScanner.getState() === 2) return; // Already scanning
+
+        document.getElementById('scannerContainer').style.display = 'block';
+        document.getElementById('startScanBtn').style.display    = 'none';
+        document.getElementById('stopScanBtn').style.display     = 'inline-flex';
+
+        document.getElementById('scanStatus').innerText = 'Starting camera...';
+        document.getElementById('scanStatus').className = 'mt-3 alert alert-info text-center py-2';
+
+        Html5Qrcode.getCameras().then(cameras => {
+            if (cameras && cameras.length) {
+                const cameraId = cameras[0].id; // Use the first camera found
+                const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+                html5QrcodeScanner.start(cameraId, config, onScanSuccess, (errorMessage) => {
+                    // Optional: you can handle scan errors here, but onScanSuccess handles valid reads
+                })
+                .then(() => {
+                    document.getElementById('scanStatus').innerText = 'Camera active — point at a QR code';
+                    document.getElementById('scanStatus').className = 'mt-3 alert alert-success text-center py-2';
+                })
+                .catch(err => {
+                    document.getElementById('scanStatus').innerText = `Camera Error: ${err}`;
+                    document.getElementById('scanStatus').className = 'mt-3 alert alert-danger text-center py-2';
+                    stopScanner();
+                });
+            } else {
+                document.getElementById('scanStatus').innerText = 'No cameras found.';
+                document.getElementById('scanStatus').className = 'mt-3 alert alert-danger text-center py-2';
+            }
+        }).catch(err => {
+            document.getElementById('scanStatus').innerText = `Permission Error: ${err}`;
+            document.getElementById('scanStatus').className = 'mt-3 alert alert-danger text-center py-2';
+        });
+    }
+
+    function stopScanner(){
+        if (html5QrcodeScanner && html5QrcodeScanner.getState() === 2) {
+            html5QrcodeScanner.stop().then(() => {
+                document.getElementById('reader').innerHTML = ''; // Clear the reader element
+                document.getElementById('scannerContainer').style.display = 'none';
+                document.getElementById('startScanBtn').style.display = 'inline-flex';
+                document.getElementById('stopScanBtn').style.display = 'none';
+                document.getElementById('scanStatus').innerText = 'Camera stopped. Click "Start Camera" to resume.';
+                document.getElementById('scanStatus').className = 'mt-3 alert alert-info text-center py-2';
+            }).catch(err => console.error("Failed to stop scanner:", err));
+        }
+    }
+
+    function openSpotModal(data) {
+        pendingEntry = data;
+        selectedSpotLabel = null;
+        document.getElementById('spotModalVehicle').innerText = `${data.name} (${data.plate})`;
+        document.getElementById('customSpotInput').value = '';
+        
+        const grid = document.getElementById('spotGrid');
+        const spots = getAllSpots(data.type || 'Private');
+        const occupied = new Set(vehicles.filter(v => v.logOutTime === "---").map(v => v.spot));
+        
+        grid.innerHTML = spots.map(s => `
+            <div class="spot-btn ${occupied.has(s) ? 'occupied' : 'available'}" 
+                 onclick="${occupied.has(s) ? '' : `selectSpot(this, '${s}')`}"
+                 style="cursor: ${occupied.has(s) ? 'not-allowed' : 'pointer'}">
+                ${s}
+            </div>
+        `).join('');
+        
+        document.getElementById('spotModal').style.display = 'flex';
+        document.getElementById('bg-canvas').classList.add('bg-blur-active'); // Apply blur
+    }
+
+    function selectSpot(el, spot) {
+        document.querySelectorAll('#spotGrid .spot-btn').forEach(b => b.style.border = '2px solid #ddd');
+        el.style.border = '2px solid #1a73e8';
+        selectedSpotLabel = spot;
+        document.getElementById('customSpotInput').value = ''; // Clear custom input if grid selected
+    }
+
+    function cancelSpotAssignment() {
+        document.getElementById('spotModal').style.display = 'none';
+        pendingEntry = null;
+        document.getElementById('bg-canvas').classList.remove('bg-blur-active'); // Remove blur
+        if(html5QrcodeScanner && html5QrcodeScanner.getState() === 3) html5QrcodeScanner.resume(); // Resume if paused
+    }
+
+    function confirmSpotAssignment() {
+        const custom = document.getElementById('customSpotInput').value.trim();
+        const finalSpot = custom || selectedSpotLabel;
+        
+        if (!finalSpot) return alert("Please select or enter a spot");
+        
+        const now = new Date();
+        const time = now.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+        
+        vehicles.push({...pendingEntry, logInTime: time, logOutTime: "---", spot: finalSpot, notes: ""});
+        totalEntries++;
+        
+        document.getElementById('spotModal').style.display = 'none';
+        showEntryPopup(finalSpot);
+        document.getElementById('bg-canvas').classList.remove('bg-blur-active'); // Remove blur
+        updateUI();
+    }
+
+    function showEntryPopup(spot) {
+        const popup = document.getElementById('scan-popup');
+        const pIcon = popup.querySelector('.popup-icon');
+        pIcon.innerText = "verified_user"; pIcon.style.color = "#4caf50";
+        document.getElementById('popup-text').innerText = "Welcome!";
+        document.getElementById('popup-subtext').innerText = `Assigned Spot: ${spot}`;
+        popup.classList.add('show');
+        setTimeout(() => popup.classList.remove('show'), 2500);
+    }
+
+    
+    function processManualBatch() {
+        const raw = document.getElementById('manualQrInput').value.trim();
+        const batchSpot = document.getElementById('manualBatchSpot').value.trim();
+        if(!raw) return;
+        
+        const lines = raw.split('\n').filter(l => l.trim() !== "");
+        let processedCount = 0;
+        lines.forEach(line => {
+            let data = null;
+            try { data = JSON.parse(line.trim()); } catch(e) {
+                const plate = line.trim().toUpperCase();
+                const reg = qrRegistry.find(q => q.plate.toUpperCase() === plate);
+                data = reg ? { id: reg.id, plate: reg.plate, name: reg.name, type: reg.type } 
+                           : { id: Date.now(), plate: plate, name: 'Manual Entry', type: 'Private' };
+            }
+            
+            if(data) {
+            if(data && data.plate) { // Ensure we have a plate to process
+                const idx = vehicles.findIndex(v => v.logOutTime === "---" && (
+                    (data.id && v.id === data.id) || 
+                    (data.plate && v.plate && v.plate.toUpperCase() === data.plate.toUpperCase())
+                ));
+                
+                const now = new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+                if(idx !== -1) {
+                    vehicles[idx].logOutTime = now;
+                } else {
+                    // Synchronize type from registry if not in JSON
+                    if (!data.type) {
+                        const reg = qrRegistry.find(q => q.plate.toUpperCase() === data.plate.toUpperCase());
+                        data.type = reg ? reg.type : 'Private';
+                    }
+                    vehicles.push({...data, logInTime: now, logOutTime: "---", spot: batchSpot || "N/A", notes: "", timestamp: new Date().getTime()});
+                    totalEntries++;
+                }
+                processedCount++;
+            }
+        });
+        document.getElementById('manualQrInput').value = '';
+        if (processedCount > 0) showPopup('info', '#1a73e8', `Processed ${processedCount} batch entries.`, '');
+        updateUI();
+    }
+
+    let lastScanTime = 0;
+    let lastScanContent = "";
+
+    function onScanSuccess(decodedText) {
+        // Unlimited scanning debounce: ignore same code for 3 seconds
+        if (Date.now() - lastScanTime < 3000 && decodedText === lastScanContent) return;
+        lastScanTime = Date.now();
+        lastScanContent = decodedText;
+
+        try {
+            let data = null;
+            try { 
+                data = JSON.parse(decodedText); 
+            } catch(e) {
+                // Fallback: Treat as a plain plate string
+                const plateLookup = decodedText.trim().toUpperCase();
+                const regItem = qrRegistry.find(q => q.plate.toUpperCase() === plateLookup);
+                data = regItem ? { id: regItem.id, plate: regItem.plate, name: regItem.name, type: regItem.type }
+                data = regItem ? { id: regItem.id, plate: regItem.plate, name: regItem.name, type: regItem.type, phone: regItem.phone, messenger: regItem.messenger }
+                               : { id: Date.now(), plate: plateLookup, name: 'Visitor', type: 'Private' };
+            }
+
+            // Sync from registry if we only have an ID
+            if (data && data.id && !data.plate && data.type !== 'helmet') {
+                const reg = qrRegistry.find(q => q.id === data.id);
+                if (reg) Object.assign(data, { plate: reg.plate, name: reg.name, type: reg.type });
+            }
+
+            const now = new Date();
+            const time = now.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+            const popup = document.getElementById('scan-popup');
+            const pIcon = popup.querySelector('.popup-icon');
+
+            if (data.type === 'helmet') {
+                // Handle helmet entry/exit
+                const idx = helmetLogs.findIndex(h => h.id === data.id && h.logOutTime === "---");
+                if (idx !== -1) {
+                    helmetLogs[idx].logOutTime = time;
+                    pIcon.innerText = "check_circle"; pIcon.style.color = "#ff9800";
+                    document.getElementById('popup-text').innerText = "Helmet Returned!";
+                    showPopup('check_circle', '#ff9800', 'Helmet Returned!', '');
+                } else {
+                    // Find the registry item to get type
+                    const regItem = qrRegistry.find(q => q.id === data.id);
+                    if (!regItem) {
+                        document.getElementById('scanStatus').innerText = "Helmet not registered.";
+                        return;
+                    }
+                    const type = regItem.type;
+                    helmetLogs.push({id: data.id, helmet: data.helmet, type: type, logInTime: time, logOutTime: "---"});
+                    pIcon.innerText = "verified_user"; pIcon.style.color = "#4caf50";
+                    document.getElementById('popup-text').innerText = "Helmet Stored!";
+                    showPopup('verified_user', '#4caf50', 'Helmet Stored!', '');
+                }
+            } else {
+                // Handle vehicle entry/exit
+                const idx = vehicles.findIndex(v => v.logOutTime === "---" && (
+                    (data.id && v.id === data.id) || 
+                    (data.plate && v.plate && v.plate.toUpperCase() === data.plate.toUpperCase())
+                ));
+                
+                if (idx !== -1) {
+                    vehicles[idx].logOutTime = time;
+                    pIcon.innerText = "check_circle"; pIcon.style.color = "#ff9800";
+                    document.getElementById('popup-text').innerText = "Goodbye!";
+                    showPopup('check_circle', '#ff9800', 'Goodbye!', `${vehicles[idx].name} — ${vehicles[idx].plate}`);
+                } else {
+                    // Trigger Manual Spot Assignment
+                    if(html5QrcodeScanner && html5QrcodeScanner.getState() === 2) html5QrcodeScanner.pause(); // Pause scanner
+                    openSpotModal(data);
+                }
+            }
+            popup.classList.add('show');
+            document.getElementById('scanStatus').innerText = document.getElementById('popup-text').innerText;
+            setTimeout(() => {
+                popup.classList.remove('show');
+                document.getElementById('scanStatus').innerText = 'Ready...';
+            }, 2500);
+            // Update scanStatus bar for immediate feedback, popup handles its own display
+            document.getElementById('scanStatus').innerText = `Last scan: ${data.plate || data.id}`;
+            document.getElementById('scanStatus').className = 'mt-3 alert alert-success text-center py-2';
+
+            updateUI();
+        } catch (e) {
+            document.getElementById('scanStatus').innerText = 'Invalid QR Format';
+            alert("Invalid QR Format");
+        }
+    }
+
+    function printPass() {
+        const qrContainer = document.getElementById('qrOutputContainer');
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>V-Security Pro Pass</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .btn { display: none !important; }
+                        @media print { body { margin: 0; } }
+                    </style>
+                </head>
+                <body>
+                    <h2>V-Security Pro Digital Pass</h2>
+                    ${qrContainer.innerHTML}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    // --- LOG OPERATIONS ---
+    function manualLogOut(index) {
+        const now = new Date();
+        const time = now.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+        vehicles[index].logOutTime = time;
+        updateUI();
+    }
+
+    function deleteLog(index) {
+        if(confirm("Remove this log entry?")) {
+            vehicles.splice(index, 1);
+            updateUI();
+        }
+    }
+
+    function updateLogData(index, field, value) {
+        vehicles[index][field] = value;
+        localStorage.setItem('vehicleLogs', JSON.stringify(vehicles));
+        updateUI();
+    }
+
+    function updateUI() {
+        localStorage.setItem('vehicleLogs', JSON.stringify(vehicles));
+        localStorage.setItem('helmetLogs', JSON.stringify(helmetLogs));
+        localStorage.setItem('totalCounter', totalEntries);
+        
+        const counts = { Cars: 0, Motorcycle: 0, Private: 0, 'Deliveries': 0 };
+        // Filter for active vehicles only for dashboard counts
+        vehicles.forEach(v => counts[v.type]++);
+        document.getElementById('dashTotal').innerText = totalEntries;
+        document.getElementById('dashCars').innerText = counts.Cars || 0;
+        document.getElementById('dashMotorcycle').innerText = counts.Motorcycle || 0;
+        document.getElementById('dashPrivate').innerText = counts.Private || 0;
+        document.getElementById('dashDeliveries').innerText = counts['Deliveries'] || 0;
+
+        const regList = document.getElementById('qrRegistryList');
+        regList.innerHTML = qrRegistry.length ? qrRegistry.map(q => `
+            <div class="col-md-6 col-lg-4">
+                <div class="registry-badge" onclick="viewQrDetails(${q.id})">
+                    <button class="btn btn-sm btn-outline-danger border-0 position-absolute top-0 end-0 m-2" onclick="event.stopPropagation(); deleteFromRegistry(${q.id})" title="Revoke Pass">
+                        <span class="material-icons-round" style="font-size:16px;">close</span>
+                    </button>
+                    <img src="${q.photo || 'https://via.placeholder.com/50?text=👤'}" class="registry-thumb">
+                    <div style="flex:1">
+                        <div class="fw-bold">${q.name}</div>
+                        <div class="small text-dark opacity-75">${q.plate}</div>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">${q.type}</span>
+                </div>
+            </div>
+        `).join('') : '<p class="text-center text-dark opacity-75">No passes issued.</p>';
+
+        const tableRows = vehicles.map((v, i) => {
+            const isInside = v.logOutTime === "---";
+            return `
+            <tr>
+                <td><input type="text" class="form-control form-control-sm border-0 bg-transparent fw-bold" value="${v.name}" onchange="updateLogData(${i}, 'name', this.value)"></td>
+                <td><input type="text" class="form-control form-control-sm border-0 bg-transparent fw-bold" value="${v.name || ''}" onchange="updateLogData(${i}, 'name', this.value)"></td>
+                <td><input type="text" class="form-control form-control-sm border-0 bg-transparent" value="${v.plate}" onchange="updateLogData(${i}, 'plate', this.value)"></td>
+                <td><span class="badge bg-light text-dark">${v.type}</span></td>
+                <td>${v.spot || 'N/A'}</td>
+                <td><input type="text" class="form-control form-control-sm border-0 bg-transparent" value="${v.notes || ''}" onchange="updateLogData(${i}, 'notes', this.value)"></td>
+                <td class="small text-dark opacity-75">${v.logInTime}</td>
+                <td class="small">
+                    ${isInside ? 
+                        `<button class="btn btn-sm btn-warning rounded-pill px-2" onclick="manualLogOut(${i})">Manual Out</button>` : 
+                        `<span class="text-success fw-bold">${v.logOutTime}</span>`
+                    }
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteLog(${i})">
+                        <span class="material-icons-round">delete_outline</span>
+                    </button>
+                </td>
+            </tr>`;
+        });
+        document.getElementById('logTableBody').innerHTML = tableRows.reverse().join('');
+        if(typeChart) updateCharts(counts.Cars||0, counts.Motorcycle||0, counts.Private||0, counts['Deliveries']||0);
+        if(document.getElementById('parking-map-view').classList.contains('active')) renderParkingMap();
+        updateParkingStatus();
+    }
+
+    // --- CHARTS ---
+    function initCharts() {
+        const ctx1 = document.getElementById('trafficChart').getContext('2d'); 
+        trafficChart = new Chart(ctx1, { type: 'line', data: { labels: ['00:00', '08:00', '12:00', '16:00', '20:00'], datasets: [{ label: 'Traffic', data: [0,0,0,0,0], borderColor: '#1a73e8', tension: 0.4 }] }});
+        const ctx2 = document.getElementById('typeChart').getContext('2d');
+        typeChart = new Chart(ctx2, { type: 'doughnut', data: { labels: ['Cars', 'Motorcycle', 'Private', 'Deliveries'], datasets: [{ data: [0,0,0,0], backgroundColor: ['#34a853', '#fbbc04', '#1a73e8', '#4caf50'] }] }});
+
+        const ctx3 = document.getElementById('parkingStatusChart')?.getContext('2d');
+        if (ctx3) {
+            parkingStatusChart = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: ['Cars', 'Motorcycle', 'Private', 'Deliveries'],
+                    datasets: [
+                        { label: 'Used', data: [0,0,0,0], backgroundColor: ['#34a853', '#fbbc04', '#1a73e8', '#4caf50'] },
+                        { label: 'Available', data: [0,0,0,0], backgroundColor: ['#c8e6c9', '#ffe0b2', '#bbdefb', '#c8e6c9'] }
+                    ]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        const ctx4 = document.getElementById('helmetStatusChart')?.getContext('2d');
+        if (ctx4) {
+            helmetStatusChart = new Chart(ctx4, {
+                type: 'bar',
+                data: {
+                    labels: ['Cars', 'Motorcycle', 'Private', 'Deliveries'],
+                    datasets: [
+                        { label: 'Stored', data: [0,0,0,0], backgroundColor: ['#1976d2', '#ffb300', '#0097a7', '#388e3c'] },
+                        { label: 'Available', data: [0,0,0,0], backgroundColor: ['#bbdefb', '#ffe082', '#b2ebf2', '#c8e6c9'] }
+                    ]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        }
+    }
+
+    function updateCharts(c, m, p, ds) {
+        typeChart.data.datasets[0].data = [c, m, p, ds];
+        typeChart.update();
+    }
+
+    function updateMonitorCharts() {
+        const vehicleLabels = ['Cars', 'Motorcycle', 'Private', 'Deliveries'];
+        const usedVehicle = vehicleLabels.map(type => getActiveCount(type));
+        const freeVehicle = vehicleLabels.map(type => Math.max((parkingConfig[type]?.capacity || 0) - getActiveCount(type), 0));
+        if (parkingStatusChart) {
+            parkingStatusChart.data.datasets[0].data = usedVehicle;
+            parkingStatusChart.data.datasets[1].data = freeVehicle;
+            parkingStatusChart.update();
+        }
+
+        const usedHelmet = vehicleLabels.map(type => getHelmetActiveCount(type));
+        const freeHelmet = vehicleLabels.map(type => Math.max((helmetConfig[type]?.capacity || 0) - getHelmetActiveCount(type), 0));
+        if (helmetStatusChart) {
+            helmetStatusChart.data.datasets[0].data = usedHelmet;
+            helmetStatusChart.data.datasets[1].data = freeHelmet;
+            helmetStatusChart.update();
+        }
+    }
+
+    // --- REPORTS ---
+    function generateReport() {
+        const period = document.getElementById('reportPeriod').value;
+        const dateStr = document.getElementById('reportDate').value;
+        if (!dateStr) {
+            alert('Please select a date.');
+            return;
+        }
+        const selectedDate = new Date(dateStr);
+        
+        let filteredVehicles = [];
+        let reportTitle = '';
+        
+        if (period === 'daily') {
+            filteredVehicles = vehicles.filter(v => {
+                const logDate = new Date(v.logInTime);
+                return logDate.toDateString() === selectedDate.toDateString();
+            });
+            reportTitle = `Daily Report for ${selectedDate.toLocaleDateString()}`;
+        } else if (period === 'weekly') {
+            const startOfWeek = new Date(selectedDate);
+            startOfWeek.setDate(selectedDate.getDate() - selectedDate.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            filteredVehicles = vehicles.filter(v => {
+                const logDate = new Date(v.logInTime);
+                return logDate >= startOfWeek && logDate <= endOfWeek;
+            });
+            reportTitle = `Weekly Report from ${startOfWeek.toLocaleDateString()} to ${endOfWeek.toLocaleDateString()}`;
+        } else if (period === 'monthly') {
+            const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+            const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+            filteredVehicles = vehicles.filter(v => {
+                const logDate = new Date(v.logInTime);
+                return logDate >= startOfMonth && logDate <= endOfMonth;
+            });
+            reportTitle = `Monthly Report for ${startOfMonth.toLocaleString('default', { month: 'long' })} ${selectedDate.getFullYear()}`;
+        } else if (period === 'yearly') {
+            const startOfYear = new Date(selectedDate.getFullYear(), 0, 1);
+            const endOfYear = new Date(selectedDate.getFullYear(), 11, 31);
+            filteredVehicles = vehicles.filter(v => {
+                const logDate = new Date(v.logInTime);
+                return logDate >= startOfYear && logDate <= endOfYear;
+            });
+            reportTitle = `Yearly Report for ${selectedDate.getFullYear()}`;
+        }
+        
+        // Calculate statistics
+        const totalEntries = filteredVehicles.length;
+        const totalExits = filteredVehicles.filter(v => v.logOutTime !== '---').length;
+        const activeVehicles = totalEntries - totalExits;
+        
+        const typeCounts = {};
+        filteredVehicles.forEach(v => {
+            typeCounts[v.type] = (typeCounts[v.type] || 0) + 1;
+        });
+        
+        // Generate HTML for report
+        let reportHTML = `
+            <h3>${reportTitle}</h3>
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="card p-3 text-center">
+                        <h5>Total Entries</h5>
+                        <h3>${totalEntries}</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-3 text-center">
+                        <h5>Total Exits</h5>
+                        <h3>${totalExits}</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-3 text-center">
+                        <h5>Active Vehicles</h5>
+                        <h3>${activeVehicles}</h3>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card p-3 text-center">
+                        <h5>Pass Registry</h5>
+                        <h3>${qrRegistry.length}</h3>
+                    </div>
+                </div>
+            </div>
+            <h4>Entries by Type</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        Object.keys(typeCounts).forEach(type => {
+            reportHTML += `<tr><td>${type}</td><td>${typeCounts[type]}</td></tr>`;
+        });
+        
+        reportHTML += `
+                </tbody>
+            </table>
+            <h4>Vehicle Logs</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Owner</th>
+                        <th>Plate</th>
+                        <th>Type</th>
+                        <th>Entry Time</th>
+                        <th>Exit Time</th>
+                        <th>Spot</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        
+        filteredVehicles.forEach(v => {
+            reportHTML += `<tr>
+                <td>${v.name || 'N/A'}</td>
+                <td>${v.plate || 'N/A'}</td>
+                <td>${v.type || 'N/A'}</td>
+                <td>${v.logInTime}</td>
+                <td>${v.logOutTime}</td>
+                <td>${v.spot || 'N/A'}</td>
+            </tr>`;
+        });
+        
+        reportHTML += `
+                </tbody>
+            </table>
+        `;
+        
+        document.getElementById('reportContent').innerHTML = reportHTML;
+    }
+
+    function printReport() {
+        const reportContent = document.getElementById('reportContent').innerHTML;
+        if (!reportContent) {
+            alert('Please generate a report first.');
+            return;
+        }
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>V-Security Pro Report</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .card { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                        @media print { body { margin: 0; } }
+                    </style>
+                </head>
+                <body>
+                    <h1>V-Security Pro Report</h1>
+                    ${reportContent}
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    // Set default date to today
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('reportDate').value = today;
+    });
+</script>
+</body>
+</html>

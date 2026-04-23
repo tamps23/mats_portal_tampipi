@@ -1,0 +1,13 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/pro.html"
+    },
+    {
+      "source": "/portal",
+      "destination": "/user_portal.html"
+    }
+  ]
+}
